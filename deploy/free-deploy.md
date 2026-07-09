@@ -1,6 +1,6 @@
 # Free Deployment Guide — Faceless System
 
-Step-by-step instructions to deploy the entire faceless system on free-tier infrastructure.
+Step-by-step instructions to deploy the entire faceless system on $0 infrastructure.
 
 ---
 
@@ -24,35 +24,94 @@ git push -u origin main
 
 ---
 
-## 2. Render (Free) — Background Worker
+## 2. Always-On Server (Free)
 
-Deploy `orchestrator.py` as a background worker that runs continuously.
+Render's free tier **does not** include Background Workers. Use one of these instead:
 
-### Steps
+### Option A: Fly.io (Recommended — 3 free VMs)
 
-1. Go to https://dashboard.render.com
-2. **New +** → **Background Worker**
-3. Connect your GitHub repo
-4. Configure:
+1. Install flyctl: `winget install FlyIO.flyctl` or `curl -fsSL https://fly.io/install.sh | sh`
+2. Sign up: `fly auth login`
+3. Deploy:
+```bash
+fly launch --name faceless-engine --region iad --now
+fly deploy
+```
 
-| Field | Value |
-|-------|-------|
-| **Name** | `faceless-engine` |
-| **Region** | `Frankfurt (EU)` or `Oregon (US)` |
-| **Branch** | `main` |
-| **Root Directory** | *(leave blank)* |
-| **Build Command** | `pip install -r requirements.txt` |
-| **Start Command** | `python orchestrator.py --mode full` |
-| **Instance Type** | **Free** |
+Create a `fly.toml` in the project root:
+```toml
+app = "faceless-engine"
 
-5. Add environment variables (optional):
-   - `REDDIT_CLIENT_ID`
-   - `REDDIT_CLIENT_SECRET`
-   - `REDDIT_USER_AGENT`
-   - `PORT` = `5000`
-6. **Create Worker**
+[env]
+  PORT = "5000"
 
-The worker will start the Flask server (internal), multiplier loop, and bootstrap cycle. Note: on the free tier, Render spins down after 15 minutes of inactivity — the background worker type stays alive as long as it produces log output, which the 60-second loop does.
+[http_service]
+  internal_port = 5000
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[services]]
+  internal_port = 5000
+  protocol = "tcp"
+
+  [services.concurrency]
+    hard_limit = 25
+    soft_limit = 10
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls"]
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 256
+```
+
+4. Start command: `python orchestrator.py --mode full`
+
+### Option B: Koyeb (1 free app, always-on)
+
+1. Sign up at https://app.koyeb.com
+2. Create App → GitHub → select repo
+3. Settings:
+   - **Build command:** `pip install -r requirements.txt`
+   - **Run command:** `python orchestrator.py --mode full`
+   - **Port:** `5000`
+4. Deploy — stays alive permanently on free tier.
+
+### Option C: GitHub Actions Cron (No server, runs on schedule)
+
+```yaml
+# .github/workflows/daily-bootstrap.yml
+name: Daily Bootstrap
+on:
+  schedule:
+    - cron: "0 */6 * * *"   # every 6 hours
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - run: python orchestrator.py --mode one-shot
+```
+
+This runs the engine 4x/day for free (2000 min/month = plenty of headroom).
+
+### Option D: PythonAnywhere (1 always-on task)
+
+1. Sign up at https://www.pythonanywhere.com (free tier)
+2. Upload code via Git clone or web upload
+3. Go to **Tasks** tab → Create a scheduled task:
+   - **Command:** `python /home/you/faceless-system/orchestrator.py --mode one-shot`
+   - **Frequency:** `daily` or `every 6 hours`
+4. For the Flask landing page, create a **Web app** pointing to `offer/landing.py`
 
 ---
 
@@ -96,58 +155,64 @@ The landing page form points to `/subscribe`. Since Cloudflare Pages is a static
 
 ---
 
-## 4. Upstash Redis (Free) — Optional Queue
+## 4. Free Tier Alternatives Table
 
-Use Upstash for cross-cycle state and queue management if you want to persist state outside the filesystem.
-
-1. Go to https://console.upstash.com
-2. **Create Database** → select **Free** tier (5k commands/day)
-3. Copy the `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`
-4. Set as environment variables on Render
-
----
-
-## 5. Free Tier Alternatives
-
-| Service | Limits | Best For |
-|---------|--------|----------|
-| **PythonAnywhere** | 1 always-on task, 512 MB storage | Running the bootstrap on a schedule |
-| **Railway** | $5 credit/month, 500 hours | Lightweight background workers |
-| **Fly.io** | 3 shared VMs, 256 MB RAM each | Running the full engine with multiplier |
-| **GitHub Actions** | 2000 min/month free | Running `--mode one-shot` on a cron schedule |
-| **Koyeb** | 1 free app with always-on | Alternative to Render |
+| Service | Always-On? | Limits | Best For |
+|---------|-----------|--------|----------|
+| **Fly.io** | ✅ Yes | 3 shared VMs, 256 MB RAM, 3GB storage | Full engine + multiplier |
+| **Koyeb** | ✅ Yes | 1 free app, 1GB RAM, 2GB storage | Full engine + multiplier |
+| **PythonAnywhere** | ✅ Yes (1 web app) | 1 web app, 512MB storage | Landing page server |
+| **GitHub Actions** | ❌ Scheduled only | 2000 min/month | One-shot bootstrap on cron |
+| **Render** | ❌ Free web service sleeps | 750 hours, sleeps after 15min inactivity | Dev/testing only |
+| **Railway** | ❌ $5 credit, 500 hours | Resets monthly | Short-term testing |
+| **Oracle Cloud** | ✅ Yes | 2 free AMD VMs (always free) | Full VPS — most powerful |
 
 ---
 
-## Quick Deploy (One-Shot via Cron)
+## 5. Recommended Setup (True $0, No Sleeping)
 
-For a minimal setup that runs once daily on GitHub Actions:
+```
+┌──────────────────────────────────────────────┐
+│  1. Fly.io (or Koyeb)                        │
+│     → python orchestrator.py --mode full     │
+│     → Engine runs 24/7, generates content,   │
+│       tracks winners, amplifies              │
+├──────────────────────────────────────────────┤
+│  2. Cloudflare Pages                         │
+│     → Static landing page (offer/landing/)   │
+│     → Formspree for email capture            │
+├──────────────────────────────────────────────┤
+│  3. GitHub Actions (Optional booster)        │
+│     → python orchestrator.py --mode one-shot │
+│     → Every 6 hours as backup cycle          │
+└──────────────────────────────────────────────┘
+```
 
-```yaml
-# .github/workflows/daily-bootstrap.yml
-name: Daily Bootstrap
-on:
-  schedule:
-    - cron: "0 6 * * *"   # 6 AM UTC daily
-jobs:
-  bootstrap:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - run: pip install -r requirements.txt
-      - run: python orchestrator.py --mode one-shot
+## 6. Environment Variables
+
+Create a `.env` file (never committed):
+
+```ini
+# Required for posting (set these to deploy)
+REDDIT_CLIENT_ID=
+REDDIT_CLIENT_SECRET=
+REDDIT_USER_AGENT=faceless-engine/1.0
+
+TWITTER_CONSUMER_KEY=
+TWITTER_CONSUMER_SECRET=
+TWITTER_ACCESS_TOKEN=
+TWITTER_ACCESS_SECRET=
+
+# Optional
+PORT=5000
 ```
 
 ---
 
-## Estimated Free Tier Capacity
+## Quick Start (Local)
 
-| Resource | Monthly Free Limit | Faceless Usage |
-|----------|-------------------|----------------|
-| Render BG Worker | 750 hours | ~720 hours (always-on) |
-| Cloudflare Pages | Unlimited bandwidth | Static HTML ~1 KB/visit |
-| Upstash Redis | 5k commands/day | ~100 commands/cycle |
-| GitHub Actions | 2000 min/month | ~2 min/run → 60 runs/month |
+```powershell
+pip install -r requirements.txt
+python orchestrator.py --mode one-shot    # run once, see results
+python orchestrator.py --mode full        # run forever
+```
