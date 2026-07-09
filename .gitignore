@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.env
+*.env
+data/
+*.json
+!data/leads.json.example
+distribution/data/
+offer/data/
+engine/data/
+analytics/data/

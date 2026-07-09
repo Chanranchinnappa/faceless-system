@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Faceless Income Engine</title>
+<meta name="description" content="Automated Content to Warm Traffic to Silent Sales. Zero face, zero voice, zero overhead.">
+<meta property="og:title" content="The Faceless Income Engine">
+<meta property="og:description" content="Automated Content to Warm Traffic to Silent Sales. Zero face, zero voice, zero overhead.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://yourdomain.com">
+<meta property="og:image" content="https://yourdomain.com/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="The Faceless Income Engine">
+<meta name="twitter:description" content="Automated Content to Warm Traffic to Silent Sales. Zero face, zero voice, zero overhead.">
+<!--
+  Analytics placeholders:
+  - Google Analytics: <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+  - Plausible: <script defer data-domain="yourdomain.com" src="https://plausible.io/js/script.js"></script>
+-->
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,sans-serif;background:#0a0a0b;color:#e4e4e7;min-height:100vh;display:flex;align-items:center;justify-content:center}
+.container{max-width:520px;width:100%;padding:2rem 1.5rem;text-align:center}
+.logo{font-size:2.5rem;margin-bottom:.5rem}
+h1{font-size:2rem;font-weight:800;line-height:1.2;margin-bottom:.5rem;background:linear-gradient(135deg,#f59e0b,#e879f9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.subhead{font-size:1.1rem;color:#a1a1aa;margin-bottom:2rem;font-weight:500}
+.bullets{text-align:left;margin-bottom:2rem;list-style:none}
+.bullets li{padding:.6rem 0;padding-left:1.8rem;position:relative;font-size:.95rem;color:#d4d4d8}
+.bullets li::before{content:"\2713";position:absolute;left:0;color:#22c55e;font-weight:700}
+.form-group{margin-bottom:1rem}
+input[type=email]{width:100%;padding:.85rem 1rem;border-radius:8px;border:1px solid #27272a;background:#18181b;color:#e4e4e7;font-size:1rem;outline:none;transition:border-color .2s}
+input[type=email]:focus{border-color:#a855f7}
+.btn{display:inline-block;width:100%;padding:.85rem 1rem;border-radius:8px;border:none;font-size:1rem;font-weight:600;cursor:pointer;text-decoration:none;transition:opacity .2s,transform .1s}
+.btn:active{transform:scale(.98)}
+.btn-primary{background:linear-gradient(135deg,#a855f7,#6366f1);color:#fff}
+.btn-secondary{background:#27272a;color:#e4e4e7;margin-top:.75rem}
+.btn-checkout{background:linear-gradient(135deg,#f59e0b,#e879f9);color:#fff;margin-top:1rem}
+.btn:hover{opacity:.9}
+.or-divider{margin:1.25rem 0;color:#52525b;font-size:.85rem;display:flex;align-items:center;gap:.75rem}
+.or-divider::before,.or-divider::after{content:"";flex:1;height:1px;background:#27272a}
+.footer{margin-top:2rem;font-size:.75rem;color:#52525b}
+.success{display:none;padding:1rem;background:#052e16;border:1px solid #166534;border-radius:8px;color:#bbf7d0;margin-bottom:1rem}
+@media(max-width:480px){h1{font-size:1.6rem}.container{padding:1.5rem 1rem}}
+</style>
+</head>
+<body>
+<div class="container" id="app">
+<div class="logo">&#9889;</div>
+<h1>The Faceless Income Engine</h1>
+<p class="subhead">Automated Content &rarr; Warm Traffic &rarr; Silent Sales</p>
+
+<ul class="bullets">
+<li>AI writes your content while you sleep</li>
+<li>Posts automatically to 3 platforms</li>
+<li>Zero face, zero voice, zero overhead</li>
+</ul>
+
+<div id="success-msg" class="success">Thanks! Your checklist is on the way.</div>
+
+<!--
+  Form action: when deploying on Cloudflare Pages / Netlify,
+  change the action URL to your backend endpoint or use a serverless function.
+  Examples:
+    action="https://your-api.workers.dev/subscribe"
+    action="https://yourdomain.com/api/subscribe"
+-->
+<form id="subscribe-form" action="/subscribe" method="POST">
+<div class="form-group">
+<input type="email" name="email" placeholder="Your best email" required>
+</div>
+<button type="submit" class="btn btn-primary">Get the Launch Checklist</button>
+</form>
+
+<div class="or-divider">or</div>
+
+<a href="/checkout" class="btn btn-checkout">Full System Access &mdash; $47 one-time</a>
+
+<div class="footer">
+<a href="/download/checklist" style="color:#52525b;text-decoration:underline;font-size:.75rem">Download Checklist</a>
+</div>
+</div>
+
+<script>
+document.getElementById('subscribe-form').addEventListener('submit', async function(e){
+e.preventDefault();
+const email = this.email.value.trim();
+if(!email) return;
+try{
+const res = await fetch(this.action, {
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({email})
+});
+const data = await res.json();
+if(data.status==='ok'){
+document.getElementById('success-msg').style.display='block';
+this.reset();
+}
+}catch(err){}
+});
+</script>
+</body>
+</html>
