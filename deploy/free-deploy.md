@@ -64,13 +64,13 @@ Render's free web service sleeps after inactivity, but GitHub Actions wakes it o
 3. Connect GitHub repo
 4. Configure:
 
-| Field | Value |
-|-------|-------|
-| **Name** | `faceless-landing` |
-| **Branch** | `main` |
+| Field             | Value                             |
+| ----------------- | --------------------------------- |
+| **Name**          | `faceless-landing`                |
+| **Branch**        | `main`                            |
 | **Build Command** | `pip install -r requirements.txt` |
-| **Start Command** | `python offer/landing.py` |
-| **Instance Type** | **Free** |
+| **Start Command** | `python offer/landing.py`         |
+| **Instance Type** | **Free**                          |
 
 5. **Deploy**
 
