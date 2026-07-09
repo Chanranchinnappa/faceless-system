@@ -1,34 +1,30 @@
 # Free Deployment Guide — Faceless System
 
-$0 forever infrastructure for the faceless engine.
+$0 forever infrastructure. No credit card required for any service.
 
 ---
 
-## The Winning Architecture
+## The Architecture
 
 ```
 GitHub ──► GitHub Actions (Cron - content gen + posting)
                 │
+                ├──► Render Web Service (free, sleeps)
+                │
                 ▼
-          Koyeb (Flask landing page backend)
+          Cloudflare Pages (landing page frontend)
                 │
                 ▼
           Supabase / Neon (leads, stats)
-                │
-                ▼
-          Cloudflare R2 (assets if needed)
-                │
-                ▼
-          Cloudflare Pages OR Vercel (frontend)
 ```
 
-**Total: ₹0/month** until you get real traffic.
+**Total: ₹0/month.**
 
 ---
 
-## 1. GitHub Actions — The Core Engine (Cron Worker)
+## 1. GitHub Actions — The Engine (Cron Worker)
 
-This runs your content generation, demand fusion, and distribution on schedule.
+This runs content generation, demand fusion, and distribution on schedule. No server needed.
 
 Create `.github/workflows/engine-cron.yml`:
 
@@ -36,8 +32,8 @@ Create `.github/workflows/engine-cron.yml`:
 name: Faceless Engine Cron
 on:
   schedule:
-    - cron: "0 */4 * * *"   # every 4 hours
-  workflow_dispatch:          # manual trigger
+    - cron: "0 */4 * * *"
+  workflow_dispatch:
 
 jobs:
   engine-cycle:
@@ -51,47 +47,65 @@ jobs:
         run: pip install -r requirements.txt
       - name: Run engine cycle
         run: python orchestrator.py --mode one-shot
-      - name: Upload generated content
-        uses: actions/upload-artifact@v4
-        with:
-          name: content-output
-          path: content/
 ```
 
-**Free tier:** 2000 min/month — one cycle takes ~2 min, so ~720 min/month for daily 4x runs. Well within limits.
+**Cost: $0** — 2000 free min/month. One cycle ~2 min, 4/day = ~240 min.
 
 ---
 
-## 2. Koyeb — Backend + Landing Page (Always-On)
+## 2. Render — Landing Page Backend (Free Web Service)
 
-Hosts the Flask landing page for lead capture.
+Render's free web service sleeps after inactivity, but GitHub Actions wakes it on each cycle.
 
 ### Steps
 
-1. Sign up at https://app.koyeb.com
-2. **Create App** → GitHub → select `faceless-system`
-3. Configure:
+1. Sign up at https://render.com (no credit card for free tier)
+2. **New +** → **Web Service**
+3. Connect GitHub repo
+4. Configure:
 
 | Field | Value |
 |-------|-------|
-| **Build command** | `pip install -r requirements.txt` |
-| **Run command** | `python offer/landing.py` |
-| **Port** | `5000` |
-| **Environment variables** | `PORT=5000` |
+| **Name** | `faceless-landing` |
+| **Branch** | `main` |
+| **Build Command** | `pip install -r requirements.txt` |
+| **Start Command** | `python offer/landing.py` |
+| **Instance Type** | **Free** |
 
-4. **Deploy** — stays alive on free tier (may cold-start after idle, but doesn't sleep permanently).
+5. **Deploy**
+
+The free web service sleeps after 15 min of inactivity, but wakes on request (up to 30 sec cold start). The landing page will be available at `https://faceless-landing.onrender.com`.
+
+### If Render asks for a card anyway
+
+Skip the backend entirely. Use **Formspree** (free, no card) to capture leads from the static page:
 
 ---
 
-## 3. Database — Supabase (Free PostgreSQL)
+## 2b. No-Backend Alternative — Fully Static
 
-Replace the JSON file storage with a real DB that persists across deployments.
+The landing page at `offer/landing/index.html` is pure static HTML. Deploy to Cloudflare Pages and use Formspree for the form:
 
-### Quick setup
+1. Deploy `offer/landing/` to **Cloudflare Pages** (or Vercel, or Netlify — all free, no card)
+2. Change form action in `index.html` from `/subscribe` to:
+   ```
+   https://formspree.io/f/YOUR_FORM_ID
+   ```
+3. Get a Formspree ID for free at https://formspree.io (no credit card)
 
-1. Go to https://supabase.com → **New project**
+Leads go to Formspree's dashboard. No server needed.
+
+---
+
+## 4. Database — Supabase (Free PostgreSQL)
+
+Replace JSON file storage with a real DB. No credit card required.
+
+### Steps
+
+1. Go to https://supabase.com → **Start your project** (no card for free tier)
 2. Copy connection string from Project Settings → Database
-3. Set as env var on Koyeb: `DATABASE_URL=postgresql://...`
+3. Set as `DATABASE_URL` GitHub Secret
 
 ### Schema
 
@@ -117,15 +131,15 @@ CREATE TABLE stats (
 );
 ```
 
-**Free tier:** 500 MB database, 5 GB bandwidth, unlimited API requests.
+**Free tier:** 500 MB DB, 5 GB bandwidth.
 
 ---
 
-## 4. Frontend — Cloudflare Pages / Vercel (Free)
+## 5. Frontend — Cloudflare Pages / Vercel (Free, No Card)
 
 ### Cloudflare Pages
 
-1. Go to https://dash.cloudflare.com → **Pages**
+1. https://dash.cloudflare.com → **Pages**
 2. **Create a project** → **Connect to Git**
 3. Build config:
    - **Build command:** `python offer/build_page.py`
@@ -136,29 +150,17 @@ CREATE TABLE stats (
 
 1. `npm i -g vercel`
 2. `vercel --prod`
-3. Point to `offer/landing/` as output directory
+3. Point to `offer/landing/`
 
-Both are free with unlimited bandwidth for static sites.
-
----
-
-## 5. File Storage — Cloudflare R2 (Free Tier)
-
-If you need to store generated images, audio, or output files:
-
-1. Go to https://dash.cloudflare.com → **R2**
-2. Enable R2 (no credit card required)
-3. Create bucket: `faceless-content`
-4. Free tier: 10 GB storage + 10 million reads/month
+Both free, unlimited bandwidth, no credit card.
 
 ---
 
 ## Environment Variables
 
-Set these on Koyeb + GitHub Actions secrets:
+Set as GitHub Secrets for Actions + Render env vars:
 
 ```ini
-# Required for posting
 REDDIT_CLIENT_ID=
 REDDIT_CLIENT_SECRET=
 REDDIT_USER_AGENT=faceless-engine/1.0
@@ -168,26 +170,27 @@ TWITTER_CONSUMER_SECRET=
 TWITTER_ACCESS_TOKEN=
 TWITTER_ACCESS_SECRET=
 
-# Database (optional, Supabase)
+# Optional
 DATABASE_URL=postgresql://...
-
-# App
 PORT=5000
 ```
 
 ---
 
-## Estimated Free Tier Capacity
+## Services That Require NO Credit Card
 
-| Service | Free Limit | Our Usage |
-|---------|-----------|-----------|
-| **GitHub Actions** | 2000 min/month | ~2 min/cycle, 4x/day = ~240 min |
-| **Koyeb** | 1 app, always-on (may cold-start) | 1 Flask server |
-| **Supabase** | 500 MB DB, 2 GB bandwidth | ~1 MB leads + stats |
-| **Cloudflare Pages** | Unlimited bandwidth | Static HTML page |
-| **Cloudflare R2** | 10 GB storage | Content files |
+| Service | Purpose | Signup |
+|---------|---------|--------|
+| **GitHub Actions** | Cron engine | GitHub account |
+| **Cloudflare Pages** | Static frontend | Cloudflare account |
+| **Vercel** | Static frontend (alt) | GitHub login |
+| **Netlify** | Static frontend (alt) | GitHub login |
+| **Formspree** | Form backend | GitHub login |
+| **Supabase** | PostgreSQL DB | GitHub login |
+| **Neon** | Serverless Postgres (alt) | GitHub login |
+| **Render** | Web service (may ask card) | Email (free tier exists) |
 
-**Total: $0/month. Forever.**
+**Zero cards. Zero dollars. Zero bullshit.**
 
 ---
 
@@ -195,16 +198,15 @@ PORT=5000
 
 - [ ] Push code to GitHub
 - [ ] Create `.github/workflows/engine-cron.yml`
-- [ ] Deploy Flask to Koyeb
-- [ ] Set up Supabase DB
-- [ ] Deploy landing page to Cloudflare Pages
-- [ ] Set environment variables on Koyeb + GitHub Secrets
-- [ ] Run first cycle: `python orchestrator.py --mode one-shot`
+- [ ] Deploy `offer/landing/` to Cloudflare Pages
+- [ ] Set up Formspree for email capture (or Render if no card issue)
+- [ ] Set up Supabase DB (optional, replaces JSON files)
+- [ ] Set GitHub Secrets for API keys
+- [ ] Run first cycle manually via GitHub Actions UI
 
 ## Local Dev
 
 ```powershell
 pip install -r requirements.txt
-python orchestrator.py --mode one-shot    # run once
-python orchestrator.py --mode full        # run forever locally
+python orchestrator.py --mode one-shot
 ```
