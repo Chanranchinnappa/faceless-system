@@ -4,15 +4,21 @@ on:
     - cron: "0 */4 * * *"
   workflow_dispatch:
 
+env:
+  PYTHONUNBUFFERED: 1
+
 jobs:
   engine-cycle:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
       - name: Install deps
         run: pip install -r requirements.txt
+      - name: Ensure content dir
+        run: mkdir -p content
       - name: Run engine cycle
         run: python orchestrator.py --mode one-shot

@@ -89,17 +89,7 @@ class FacelessEngine:
 
         report = self.fusion.run_cycle()
         generated = report.get("generated", [])
-
-        dist_result = {}
-        if generated:
-            try:
-                content_dir = self.root / "content"
-                dist_result = run_distribution_cycle(str(content_dir))
-                logger.info("Distribution: %d files processed", len(dist_result))
-            except Exception as exc:
-                logger.error("Distribution failed: %s", exc)
-        else:
-            logger.warning("No content generated — skipping distribution")
+        dist_result = report.get("distribution", {})
 
         for g in generated:
             topic = g.get("topic", "unknown")
@@ -139,7 +129,7 @@ class FacelessEngine:
         print(f"  Trends scanned:   {report.get('trends_scanned', 0)}")
         print(f"  Topics scored:    {report.get('topics_scored', 0)}")
         print(f"  Content files:    {report.get('generated_count', 0)}")
-        print(f"  Distribution:     {len(dist)} files")
+        print(f"  Distribution:     {dist.get('posted', 0)} files posted to {dist.get('platforms', 0)} platform(s)")
         print(f"  Winners found:    {amp.get('winners_found', 0)}")
         print(f"  Amplified:        {amp.get('amplified_pieces', 0)} pieces")
         print(f"  Spikes detected:  {amp.get('spikes_detected', 0)}")

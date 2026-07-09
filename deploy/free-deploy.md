@@ -161,14 +161,14 @@ Both free, unlimited bandwidth, no credit card.
 Set as GitHub Secrets for Actions + Render env vars:
 
 ```ini
-REDDIT_CLIENT_ID=
-REDDIT_CLIENT_SECRET=
-REDDIT_USER_AGENT=faceless-engine/1.0
+REDDIT_CLIENT_ID=Suspicious_Draw_9026
+REDDIT_CLIENT_SECRET=Macchy1028$
+REDDIT_USER_AGENT=faceless-engine
 
-TWITTER_CONSUMER_KEY=
-TWITTER_CONSUMER_SECRET=
-TWITTER_ACCESS_TOKEN=
-TWITTER_ACCESS_SECRET=
+TWITTER_CONSUMER_KEY=Nf6I3GTWDxNwMTBZQVcklxbiZ
+TWITTER_CONSUMER_SECRET=GSVk3fWOXtvOfjEVvS3dOZsuRO5P9pvbu9YKkQvpCnvNvGhvdQ
+TWITTER_ACCESS_TOKEN=2075295793867882496-rBHmVxuKzn6hm4BzegtBYWO1vm32XS
+TWITTER_ACCESS_SECRET=NPth6xHj7IzbrPbLw7MtC3oKSBkWAqeeir9vq6JA1Pggi
 
 # Optional
 DATABASE_URL=postgresql://...
@@ -196,13 +196,14 @@ PORT=5000
 
 ## Quick Deploy Checklist
 
-- [ ] Push code to GitHub
-- [ ] Create `.github/workflows/engine-cron.yml`
-- [ ] Deploy `offer/landing/` to Cloudflare Pages
-- [ ] Set up Formspree for email capture (or Render if no card issue)
-- [ ] Set up Supabase DB (optional, replaces JSON files)
-- [ ] Set GitHub Secrets for API keys
+- [x] Push code to GitHub
+- [x] Create `.github/workflows/engine-cron.yml`
+- [x] Deploy `offer/landing/` to Cloudflare Pages
+- [x] Set up Formspree for email capture (or Render if no card issue)
+- [x] Set up Supabase DB (optional, replaces JSON files)
+- [x] Set GitHub Secrets for API keys
 - [ ] Run first cycle manually via GitHub Actions UI
+- [ ] add more integrations later
 
 ## Local Dev
 
