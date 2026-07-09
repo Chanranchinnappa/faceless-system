@@ -1,199 +1,164 @@
 # Free Deployment Guide — Faceless System
 
-Step-by-step instructions to deploy the entire faceless system on $0 infrastructure.
+$0 forever infrastructure for the faceless engine.
 
 ---
 
-## 1. GitHub — Create Repo & Push Code
+## The Winning Architecture
 
-```bash
-cd ~/Projects/faceless-system
-git init
-git add .
-git commit -m "feat: initial faceless engine"
-gh repo create faceless-system --public --push
+```
+GitHub ──► GitHub Actions (Cron - content gen + posting)
+                │
+                ▼
+          Koyeb (Flask landing page backend)
+                │
+                ▼
+          Supabase / Neon (leads, stats)
+                │
+                ▼
+          Cloudflare R2 (assets if needed)
+                │
+                ▼
+          Cloudflare Pages OR Vercel (frontend)
 ```
 
-Alternatively, create the repo manually on github.com, then:
-
-```bash
-git remote add origin https://github.com/Chanranchinnappa/faceless-system.git
-git branch -M main
-git push -u origin main
-```
+**Total: ₹0/month** until you get real traffic.
 
 ---
 
-## 2. Always-On Server (Free)
+## 1. GitHub Actions — The Core Engine (Cron Worker)
 
-Render's free tier **does not** include Background Workers. Use one of these instead:
+This runs your content generation, demand fusion, and distribution on schedule.
 
-### Option A: Fly.io (Recommended — 3 free VMs)
-
-1. Install flyctl: `winget install FlyIO.flyctl` or `curl -fsSL https://fly.io/install.sh | sh`
-2. Sign up: `fly auth login`
-3. Deploy:
-```bash
-fly launch --name faceless-engine --region iad --now
-fly deploy
-```
-
-Create a `fly.toml` in the project root:
-```toml
-app = "faceless-engine"
-
-[env]
-  PORT = "5000"
-
-[http_service]
-  internal_port = 5000
-  force_https = true
-  auto_stop_machines = false
-  auto_start_machines = true
-  min_machines_running = 1
-
-[[services]]
-  internal_port = 5000
-  protocol = "tcp"
-
-  [services.concurrency]
-    hard_limit = 25
-    soft_limit = 10
-
-  [[services.ports]]
-    port = 443
-    handlers = ["tls"]
-
-[[vm]]
-  cpu_kind = "shared"
-  cpus = 1
-  memory_mb = 256
-```
-
-4. Start command: `python orchestrator.py --mode full`
-
-### Option B: Koyeb (1 free app, always-on)
-
-1. Sign up at https://app.koyeb.com
-2. Create App → GitHub → select repo
-3. Settings:
-   - **Build command:** `pip install -r requirements.txt`
-   - **Run command:** `python orchestrator.py --mode full`
-   - **Port:** `5000`
-4. Deploy — stays alive permanently on free tier.
-
-### Option C: GitHub Actions Cron (No server, runs on schedule)
+Create `.github/workflows/engine-cron.yml`:
 
 ```yaml
-# .github/workflows/daily-bootstrap.yml
-name: Daily Bootstrap
+name: Faceless Engine Cron
 on:
   schedule:
-    - cron: "0 */6 * * *"   # every 6 hours
+    - cron: "0 */4 * * *"   # every 4 hours
+  workflow_dispatch:          # manual trigger
+
 jobs:
-  bootstrap:
+  engine-cycle:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install -r requirements.txt
-      - run: python orchestrator.py --mode one-shot
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Run engine cycle
+        run: python orchestrator.py --mode one-shot
+      - name: Upload generated content
+        uses: actions/upload-artifact@v4
+        with:
+          name: content-output
+          path: content/
 ```
 
-This runs the engine 4x/day for free (2000 min/month = plenty of headroom).
-
-### Option D: PythonAnywhere (1 always-on task)
-
-1. Sign up at https://www.pythonanywhere.com (free tier)
-2. Upload code via Git clone or web upload
-3. Go to **Tasks** tab → Create a scheduled task:
-   - **Command:** `python /home/you/faceless-system/orchestrator.py --mode one-shot`
-   - **Frequency:** `daily` or `every 6 hours`
-4. For the Flask landing page, create a **Web app** pointing to `offer/landing.py`
+**Free tier:** 2000 min/month — one cycle takes ~2 min, so ~720 min/month for daily 4x runs. Well within limits.
 
 ---
 
-## 3. Cloudflare Pages (Free) — Landing Page
+## 2. Koyeb — Backend + Landing Page (Always-On)
 
-Deploy the static landing page for lead capture.
-
-### Prerequisites
-
-Build the static HTML once:
-
-```bash
-python offer/build_page.py
-```
-
-This generates `offer/landing/index.html`.
+Hosts the Flask landing page for lead capture.
 
 ### Steps
 
-1. Go to https://dash.cloudflare.com → **Pages**
-2. **Create a project** → **Connect to Git**
-3. Select your repo
-4. Configure:
+1. Sign up at https://app.koyeb.com
+2. **Create App** → GitHub → select `faceless-system`
+3. Configure:
 
 | Field | Value |
 |-------|-------|
-| **Project name** | `faceless-landing` |
-| **Production branch** | `main` |
-| **Build command** | `python offer/build_page.py` |
-| **Build output directory** | `offer/landing` |
+| **Build command** | `pip install -r requirements.txt` |
+| **Run command** | `python offer/landing.py` |
+| **Port** | `5000` |
+| **Environment variables** | `PORT=5000` |
 
-5. **Save and Deploy**
-
-### Form Handling
-
-The landing page form points to `/subscribe`. Since Cloudflare Pages is a static host, use one of these free form backends:
-
-- **Formspree** (free tier: 50 submissions/month) — change form action to `https://formspree.io/f/YOUR_FORM_ID`
-- **Web3Forms** (free tier: 100 submissions/month)
-- **Cloudflare Workers** (free tier: 100k requests/day) — create a worker at `/api/subscribe` that saves to KV
+4. **Deploy** — stays alive on free tier (may cold-start after idle, but doesn't sleep permanently).
 
 ---
 
-## 4. Free Tier Alternatives Table
+## 3. Database — Supabase (Free PostgreSQL)
 
-| Service | Always-On? | Limits | Best For |
-|---------|-----------|--------|----------|
-| **Fly.io** | ✅ Yes | 3 shared VMs, 256 MB RAM, 3GB storage | Full engine + multiplier |
-| **Koyeb** | ✅ Yes | 1 free app, 1GB RAM, 2GB storage | Full engine + multiplier |
-| **PythonAnywhere** | ✅ Yes (1 web app) | 1 web app, 512MB storage | Landing page server |
-| **GitHub Actions** | ❌ Scheduled only | 2000 min/month | One-shot bootstrap on cron |
-| **Render** | ❌ Free web service sleeps | 750 hours, sleeps after 15min inactivity | Dev/testing only |
-| **Railway** | ❌ $5 credit, 500 hours | Resets monthly | Short-term testing |
-| **Oracle Cloud** | ✅ Yes | 2 free AMD VMs (always free) | Full VPS — most powerful |
+Replace the JSON file storage with a real DB that persists across deployments.
+
+### Quick setup
+
+1. Go to https://supabase.com → **New project**
+2. Copy connection string from Project Settings → Database
+3. Set as env var on Koyeb: `DATABASE_URL=postgresql://...`
+
+### Schema
+
+```sql
+CREATE TABLE leads (
+  id SERIAL PRIMARY KEY,
+  email TEXT UNIQUE NOT NULL,
+  subscribed_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE content_posts (
+  id SERIAL PRIMARY KEY,
+  topic TEXT,
+  platform TEXT,
+  posted_at TIMESTAMPTZ DEFAULT NOW(),
+  engagement_score FLOAT DEFAULT 0,
+  amplified BOOLEAN DEFAULT FALSE
+);
+
+CREATE TABLE stats (
+  key TEXT PRIMARY KEY,
+  value INTEGER DEFAULT 0
+);
+```
+
+**Free tier:** 500 MB database, 5 GB bandwidth, unlimited API requests.
 
 ---
 
-## 5. Recommended Setup (True $0, No Sleeping)
+## 4. Frontend — Cloudflare Pages / Vercel (Free)
 
-```
-┌──────────────────────────────────────────────┐
-│  1. Fly.io (or Koyeb)                        │
-│     → python orchestrator.py --mode full     │
-│     → Engine runs 24/7, generates content,   │
-│       tracks winners, amplifies              │
-├──────────────────────────────────────────────┤
-│  2. Cloudflare Pages                         │
-│     → Static landing page (offer/landing/)   │
-│     → Formspree for email capture            │
-├──────────────────────────────────────────────┤
-│  3. GitHub Actions (Optional booster)        │
-│     → python orchestrator.py --mode one-shot │
-│     → Every 6 hours as backup cycle          │
-└──────────────────────────────────────────────┘
-```
+### Cloudflare Pages
 
-## 6. Environment Variables
+1. Go to https://dash.cloudflare.com → **Pages**
+2. **Create a project** → **Connect to Git**
+3. Build config:
+   - **Build command:** `python offer/build_page.py`
+   - **Build output:** `offer/landing`
+4. **Deploy**
 
-Create a `.env` file (never committed):
+### Vercel (Alternative)
+
+1. `npm i -g vercel`
+2. `vercel --prod`
+3. Point to `offer/landing/` as output directory
+
+Both are free with unlimited bandwidth for static sites.
+
+---
+
+## 5. File Storage — Cloudflare R2 (Free Tier)
+
+If you need to store generated images, audio, or output files:
+
+1. Go to https://dash.cloudflare.com → **R2**
+2. Enable R2 (no credit card required)
+3. Create bucket: `faceless-content`
+4. Free tier: 10 GB storage + 10 million reads/month
+
+---
+
+## Environment Variables
+
+Set these on Koyeb + GitHub Actions secrets:
 
 ```ini
-# Required for posting (set these to deploy)
+# Required for posting
 REDDIT_CLIENT_ID=
 REDDIT_CLIENT_SECRET=
 REDDIT_USER_AGENT=faceless-engine/1.0
@@ -203,16 +168,43 @@ TWITTER_CONSUMER_SECRET=
 TWITTER_ACCESS_TOKEN=
 TWITTER_ACCESS_SECRET=
 
-# Optional
+# Database (optional, Supabase)
+DATABASE_URL=postgresql://...
+
+# App
 PORT=5000
 ```
 
 ---
 
-## Quick Start (Local)
+## Estimated Free Tier Capacity
+
+| Service | Free Limit | Our Usage |
+|---------|-----------|-----------|
+| **GitHub Actions** | 2000 min/month | ~2 min/cycle, 4x/day = ~240 min |
+| **Koyeb** | 1 app, always-on (may cold-start) | 1 Flask server |
+| **Supabase** | 500 MB DB, 2 GB bandwidth | ~1 MB leads + stats |
+| **Cloudflare Pages** | Unlimited bandwidth | Static HTML page |
+| **Cloudflare R2** | 10 GB storage | Content files |
+
+**Total: $0/month. Forever.**
+
+---
+
+## Quick Deploy Checklist
+
+- [ ] Push code to GitHub
+- [ ] Create `.github/workflows/engine-cron.yml`
+- [ ] Deploy Flask to Koyeb
+- [ ] Set up Supabase DB
+- [ ] Deploy landing page to Cloudflare Pages
+- [ ] Set environment variables on Koyeb + GitHub Secrets
+- [ ] Run first cycle: `python orchestrator.py --mode one-shot`
+
+## Local Dev
 
 ```powershell
 pip install -r requirements.txt
-python orchestrator.py --mode one-shot    # run once, see results
-python orchestrator.py --mode full        # run forever
+python orchestrator.py --mode one-shot    # run once
+python orchestrator.py --mode full        # run forever locally
 ```
